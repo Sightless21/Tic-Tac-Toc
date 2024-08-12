@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css'
 
 function Square({ value, onSquareClick }) {
@@ -14,7 +14,6 @@ function Board({ xIsNext, squares, onPlay }) {
     if (calculateWinner(squares) || squares[i]) {
       return;
     }
-    
     const nextSquares = squares.slice();
     if (xIsNext) {
       nextSquares[i] = 'X';
@@ -30,12 +29,13 @@ function Board({ xIsNext, squares, onPlay }) {
     status = 'Winner: ' + winner;
   } else {
     status = 'Next player: ' + (xIsNext ? 'X' : 'O');
+    
   }
 
   return (
     <>
       <div className="status">{status}</div>
-      <div className="board">
+      <div className='board-card'>
         <div className="board-row">
           <Square value={squares[0]} onSquareClick={() => handleClick(0)} />
           <Square value={squares[1]} onSquareClick={() => handleClick(1)} />
@@ -59,12 +59,28 @@ function Board({ xIsNext, squares, onPlay }) {
 export default function Game() {
   const [history, setHistory] = useState([Array(9).fill(null)]);
   const [currentMove, setCurrentMove] = useState(0);
+  const [isReplaying, setIsReplaying] = useState(false); // Add isReplaying state
+  const [logVisible, setLogVisible] = useState(false);
   const xIsNext = currentMove % 2 === 0;
   const currentSquares = history[currentMove];
+
+  useEffect(() => {
+    if (isReplaying) {
+      const timer = setTimeout(() => {
+        if (currentMove < history.length - 1) {
+          setCurrentMove(currentMove + 1);
+        } else {
+          setIsReplaying(false);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isReplaying, currentMove, history]);
 
   function handlePlay(nextSquares) {
     const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
     setHistory(nextHistory);
+    setLogVisible(true);
     setCurrentMove(nextHistory.length - 1);
   }
 
@@ -75,19 +91,25 @@ export default function Game() {
   function restartGame() {
     setHistory([Array(9).fill(null)]);
     setCurrentMove(0);
+    setLogVisible(false);
   }
 
-  const move = history.map((move) => {
+  function startReplay() {
+    setCurrentMove(0);
+    setIsReplaying(true);
+  }
+
+  const moves = history.map((squares, move) => {
     let description;
     if (move > 0) {
-      description = 'Go to move #' + move;
+      description = 'Turn :' + move;
     } else {
-      description = 'Go to game start';
+      return null;
     }
     return (
-      <li>
-        <button onClick={() => jumpTo(move)}>{description}</button>
-      </li>
+      <div className='turn-bt'>
+        <button key={move} onClick={() => jumpTo(move)}>{description}</button>
+      </div>
     );
   });
 
@@ -96,9 +118,18 @@ export default function Game() {
       <div className="game-board">
         <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
       </div>
+      <br />
+      <div className='Restart-bt'>
+        <button onClick={restartGame}>Reset</button>
+      </div>
+      <div className='Replay-bt'>
+        <button onClick={startReplay} disabled={isReplaying}>
+          {isReplaying ? 'Replaying...' : 'Start Replay'}
+        </button>
+      </div>
       <div className="game-info">
-        <ol>{move}</ol>
-        <button onClick={restartGame}>Restart Game</button>
+        <h1>Log Player</h1>
+        {logVisible && <button className='Log-game'>{moves}</button>}
       </div>
     </div>
   );
